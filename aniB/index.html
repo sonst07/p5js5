@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>캐릭터 애니메이션</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+</head>
+<body>
+    <script>
+        // 이미지 변수 선언 (파일명과 동일)
+        let BChair, earlyB, happyB, sadB, light, tears, bg;
+        let currentState = 'early';
+        let imageX, imageY;
+        let lightScale;
+        let tearsY;
+        let scaleFactor, offsetX, offsetY;
+
+        function preload() {
+            // 모든 에셋 프리로드
+            BChair   = loadImage('BChair.png');
+            earlyB   = loadImage('earlyB.png');
+            happyB   = loadImage('happyB.png');
+            sadB     = loadImage('sadB.png');
+            light    = loadImage('light.png');
+            tears    = loadImage('tears.png');
+            bg       = loadImage('bg.png');
+        }
+
+        function setup() {
+            createCanvas(400, 600);
+            // calculate scaling to preserve 600×600 original ratio
+            scaleFactor = min(width / 600, height / 600);
+            offsetX     = (width  - 600 * scaleFactor) / 2;
+            offsetY     = (height - 600 * scaleFactor) / 2;
+            // set character center in original coordinate space
+            imageX = 600 / 2;
+            imageY = 600 / 2;
+            tearsY = imageY;
+        }
+
+        function draw() {
+            // apply scaling and centering
+            translate(offsetX, offsetY);
+            scale(scaleFactor);
+
+            push();
+            imageMode(CENTER);
+            image(bg, imageX, imageY, 600, 900);
+            updateAnimation();
+            drawCharacterB();
+            drawButtons()
+            pop();
+        }
+
+        // 애니메이션 업데이트//ai사용용
+        function updateAnimation() {
+            if (currentState === 'happy') {
+                if (lightScale < 1.0) {
+                    lightScale += 0.01; // 점점 커짐
+                }
+            } else {
+                lightScale = 0.1; // 초기화
+            }
+            if (currentState === 'sad') {
+                tearsY += 2;
+                if (tearsY > 640) {
+                    tearsY = imageY;
+                }
+            }
+        }
+
+        // 초기 상태 드로잉 함수
+        function drawEarlyB() {
+            image(BChair, imageX, imageY, 600, 600);
+            image(earlyB, imageX, imageY, 600, 600);
+        }
+
+        // 행복한 상태 드로잉 함수
+        function drawHappyB() {
+            image(BChair, imageX, imageY, 600, 600);
+            let lightWidth  = 600 * lightScale;
+            let lightHeight = 600 * lightScale;
+            image(light, imageX, imageY, lightWidth, lightHeight);
+            image(happyB, imageX, imageY, 600, 600);
+        }
+
+        // 슬픈 상태 애니메이션 함수
+        function drawSadB() {
+            image(BChair, imageX, imageY, 600, 600);
+            image(sadB, imageX, imageY, 600, 600);
+            image(tears, imageX, tearsY, 600, 600);
+        }
+
+    
+
+function drawButtons() {//버튼 그리는 함수 //ai사용용
+
+            textAlign(CENTER, CENTER)
+  textSize(20)
+  fill(0)
+  text("당신이 했던 말은?", width / 2+100, 100) // 버튼 위쪽에 출력
+
+    rectMode(CENTER)
+    textAlign(CENTER, CENTER)
+    textSize(20)
+    noStroke()
+
+    // 공통 버튼 스타일
+    const btnW = 120
+    const btnH = 50
+    const btnRadius = 15
+
+    // 마우스 오버 체크
+    const isHoverHappy = mouseX > 150 - btnW/2 && mouseX < 150 + btnW/2 && mouseY > 100 - btnH/2 && mouseY < 100 + btnH/2
+    const isHoverSad = mouseX > 450 - btnW/2 && mouseX < 450 + btnW/2 && mouseY > 100 - btnH/2 && mouseY < 100 + btnH/2
+
+    // 😊 긍정 버튼
+    push();
+    fill(isHoverHappy ? color(255, 230, 150) : color(255, 215, 100)) // hover 색상
+    drawingContext.shadowBlur = 10
+    drawingContext.shadowColor = 'rgba(0,0,0,0.2)'
+    drawingContext.shadowOffsetY = 2
+    rect(150, 100, btnW, btnH, btnRadius)
+    noStroke()
+    fill(50)
+    text("😊 긍정", 150, 100)
+    pop()
+
+    // 😢 부정 버튼
+    push()
+    fill(isHoverSad ? color(180, 220, 255) : color(130, 180, 255))// hover 색상
+    drawingContext.shadowBlur = 10
+    drawingContext.shadowColor = 'rgba(0,0,0,0.2)'
+    drawingContext.shadowOffsetY = 2
+    rect(450, 100, btnW, btnH, btnRadius)
+    noStroke()
+    fill(30)
+    text("😢 부정", 450, 100)
+    pop()
+}
+
+        function drawCharacterB() {
+            
+            if (currentState === 'early')    drawEarlyB();
+            else if (currentState === 'happy') drawHappyB();
+            else if (currentState === 'sad')   drawSadB();
+        }
+
+        // 마우스 클릭 이벤트 핸들링//ai사용용
+        function mousePressed() {
+    // scale()과 translate() 적용 전의 원래 좌표로 되돌림
+    const scaledX = (mouseX - offsetX) / scaleFactor;
+    const scaledY = (mouseY - offsetY) / scaleFactor;
+
+    // 긍정 버튼 클릭 (버튼 중심: x=150, y=100, 크기: 120x50)
+    if (scaledX > 150 - 60 && scaledX < 150 + 60 && scaledY > 100 - 25 && scaledY < 100 + 25) {
+        currentState = 'happy';
+        happyBStartFrame = frameCount;
+    }
+    // 부정 버튼 클릭 (버튼 중심: x=450, y=100, 크기: 120x50)
+    else if (scaledX > 450 - 60 && scaledX < 450 + 60 && scaledY > 100 - 25 && scaledY < 100 + 25) {
+        currentState = 'sad';
+        sadBStartFrame = frameCount;
+    }
+    // 나머지는 초기 상태
+    else {
+        currentState = 'early';
+    }
+}
+    </script>
+</body>
+</html>

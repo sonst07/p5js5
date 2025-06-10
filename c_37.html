@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Instagram 스타일 UI - p5.js</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #aaa;
+      overflow-y: auto;
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    #phone-frame {
+      position: fixed;
+      top: 48%;
+      left: 50%;
+      width: 700px;
+      height: auto;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 999;
+    }
+    #feed-container {
+      position: fixed;
+      top: 47%;
+      left: 50%;
+      width: 390px;
+      height: 760px;
+      transform: translate(-50%, -50%);
+      overflow-x: hidden;
+      border-radius: 55px;
+      overflow-y: scroll;
+      pointer-events: auto;
+      z-index: 998;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    #insta-bottom {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      top: calc(38% + 394px);
+      width: 390px;
+      pointer-events: auto;
+      z-index: 999;
+      border-bottom-left-radius: 50px;
+      border-bottom-right-radius: 50px;
+      overflow: hidden;
+    }
+
+    #feed-container::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+<div id="feed-container"></div>
+
+<img id="insta-bottom" src="insta_bottom3.png" alt="Instagram lower overlay">
+
+<script>
+let instaUpperImg;
+let reelsImgs = [];
+let reelIdx = 0;
+let isReelTransitioning = false;
+let prevReelIdx = 0;
+let reelTransitionStart = 0;
+let reelTransitionDuration = 300;
+let reelTransitionDir = 0;
+let reelScrollAccum = 0;
+let reelScrollThreshold = 700;
+let imgs = [];
+let reel4StartTime = null;
+let reel5StartTime = null;
+let reel8StartTime = null;
+// let idx = 0;
+
+const feedHeight = 600;
+const feedCount = 6;
+let transitionDuration = 300; // ms for slide animation
+
+let idxs = Array(feedCount).fill(0);
+let prevIdxs = Array(feedCount).fill(0);
+let isTransitioningArr = Array(feedCount).fill(false);
+let transitionStarts = Array(feedCount).fill(0);
+
+let profileImg, blueCheck;
+let heartIcon, msgIcon, sentIcon, tagIcon, etcIcon;
+let eraserIcon;
+
+let likedArr = Array(feedCount).fill(false);
+let likeStartCount = 10.3;
+let likeEndCount = 164.6;
+let likeAnimDuration = 2000; // animation duration in ms
+let likeDisplayCountArr = Array(feedCount).fill(likeStartCount);
+let likeAnimatingArr = Array(feedCount).fill(false);
+let likeAnimStartTimeArr = Array(feedCount).fill(0);
+
+let heartEmptyIcon;
+let likeAvatar1;
+let likeAvatar2;
+const baseH = 550; // original layout height
+
+// 댓글 애니메이션 globals
+let commentAnimStart = 0;
+let commentAnimDelay = 750;       // ms between bubbles
+let commentFadeDuration = 400;    // ms fade-in per bubble
+let commentAnimActive = false;
+let lastAnimIndex = -1;
+let initialCommentLoad = false;
+
+// Like animation globals
+// let likeStartCount = 10.3;
+// let likeEndCount = 164.6;
+// let likeDisplayCount = likeStartCount;
+// let likeAnimStartTime = 0;
+// let likeAnimDuration = 1000; // animation duration in ms
+// let likeAnimating = false;
+let commentsVisibleArr = Array(feedCount).fill(false);
+
+let commentAnimStartArr = Array(feedCount).fill(0);
+let lastAnimIndexArr = Array(feedCount).fill(-1);
+let commentAnimActiveArr = Array(feedCount).fill(false);
+let initialCommentLoadArr = Array(feedCount).fill(false);
+let commentInputs = [];
+let submitButtons = [];
+const initialComments = [
+  "멋진 사진이네요!",
+  "오 대박 👍",
+  "어디서 찍으신 건가요?",
+  "너무 예쁘다",
+  "옷 너무 잘 어울려",
+  "슈슈슈슈퍼노바"
+];
+let commentsArr = [];
+let storedComments = [];
+for (let i = 0; i < feedCount; i++) {
+  commentsArr[i] = initialComments.slice();
+}
+
+let currentCommentFeedIdx = 0;
+
+// Transition globals
+// let isTransitioning = false;
+// let transitionStart = 0;
+// let prevIdx = 0;
+let transitionDir = 1; // 1 = next (slide left), -1 = previous (slide right)
+
+const usernames = ["iamd", "character_a", "sone", "im_b", "namec", "flow"];
+
+let isFeedScreen = true;
+// Pull-to-refresh globals for Reels screen
+let isPulling = false;
+let pullStartY = 0;
+let pullDistance = 0;
+const pullThreshold = 50;
+let isRefreshing = false;
+let refreshStartTime = 0;
+let refreshBgColor = null;
+
+// Heart animation globals for pull-to-refresh
+let hearts = [];
+let startTime = 0;
+const burstCount = 20;
+const spawnRate = 5;
+
+// Heart class (same as before, assumed to be above)
+class Heart {
+  constructor() {
+    this.x = random(40, width - 40);
+    this.y = height + random(20, 100);
+    this.size = random(24, 40);
+    this.speed = random(2, 4);
+    this.color = color(random(200,255), random(80,180), random(120,255), 180);
+    this.amp = random(10, 40);
+    this.freq = random(0.015, 0.025);
+    this.phase = random(TWO_PI);
+  }
+  update() {
+    this.y -= this.speed;
+    this.x += sin(this.y * this.freq + this.phase) * this.amp * 0.01;
+  }
+  draw() {
+    push();
+    translate(this.x, this.y);
+    scale(this.size / 32);
+    noStroke();
+    fill(this.color);
+    beginShape();
+    vertex(0, -10);
+    bezierVertex(15, -22, 36, -4, 0, 24);
+    bezierVertex(-36, -4, -15, -22, 0, -10);
+    endShape(CLOSE);
+    pop();
+  }
+}
+
+// Initialize a burst of hearts when refresh starts
+function startHeartBurst() {
+  hearts = [];
+  startTime = millis();
+  for (let i = 0; i < burstCount; i++) {
+    hearts.push(new Heart());
+  }
+}
+
+// Update and draw hearts during refresh
+function runHeartAnimation() {
+  if (millis() - startTime < 2500 && frameCount % spawnRate === 0) {
+    for (let i = 0; i < 5; i++) {
+      hearts.push(new Heart());
+    }
+  }
+  for (let i = hearts.length - 1; i >= 0; i--) {
+    hearts[i].update();
+    hearts[i].draw();
+    if (hearts[i].y + hearts[i].size < 0) {
+      hearts.splice(i, 1);
+    }
+  }
+  if (millis() - startTime >= 2500 && hearts.length === 0) {
+    // ready for next pull
+    startTime = millis();
+  }
+}
+
+// 원형 클리핑 후 이미지 그리기
+function drawCircularImage(img, cx, cy, r) {
+  drawingContext.save();
+  drawingContext.beginPath();
+  drawingContext.arc(cx, cy, r, 0, TWO_PI);
+  drawingContext.clip();
+  // 이미지 중앙 정사각형 영역 계산
+  let pw = img.width, ph = img.height;
+  let pr = min(pw, ph);
+  let sx = (pw - pr) / 2, sy = (ph - pr) / 2;
+  image(img, cx, cy, r * 2, r * 2, sx, sy, pr, pr);
+  drawingContext.restore();
+}
+
+// object-fit: cover 방식으로 정사각형에 이미지 채우기
+function drawCoverSquare(img, x, y, w, h) {
+  let arCanvas = w / h;
+  let arImg = img.width / img.height;
+  let cropW, cropH;
+  if (arImg > arCanvas) {
+    cropH = img.height;
+    cropW = cropH * arCanvas;
+  } else {
+    cropW = img.width;
+    cropH = cropW / arCanvas;
+  }
+  let sx = (img.width - cropW) / 2;
+  let sy = (img.height - cropH) / 2;
+  image(img, x + w/2, y + h/2, w, h, sx, sy, cropW, cropH);
+}
+
+// Load all image assets
+function loadAssets() {
+  imgs = [];
+  imgs.push(loadImage("img1.png"));
+  imgs.push(loadImage("img2.png"));
+  imgs.push(loadImage("img4.png"));
+  profileImg = loadImage("img1.png");
+  blueCheck = loadImage("badge.png");
+  heartIcon = loadImage("heart.png");
+  msgIcon   = loadImage("msg.png");
+  sentIcon  = loadImage("sent.png");
+  tagIcon   = loadImage("tag.png");
+  etcIcon   = loadImage("etc.png");
+  heartEmptyIcon = loadImage("heart_empty.png");
+  likeAvatar1 = loadImage("like3.png");
+  likeAvatar2 = loadImage("like2.png");
+  eraserIcon = loadImage("eraser.png");
+  instaUpperImg = loadImage("insta_upper.jpeg");
+  reelsImgs = [];
+  reelsImgs.push(loadImage("reels_main0.jpeg"));
+  reelsImgs.push(loadImage("reels_main1.jpeg"));
+  reelsImgs.push(loadImage("reels_main2.jpeg"));
+  reelsImgs.push(loadImage("reels_main3.jpeg"));
+  reelsImgs.push(loadImage("reels_main4.jpeg"));
+  reelsImgs.push(loadImage("reels_main5.jpeg"));
+  reelsImgs.push(loadImage("reels_main6.png"));
+  reelsImgs.push(loadImage("reels_main7.png"));
+  reelsImgs.push(loadImage("reels_main7.png"));
+  reelsImgs.push(loadImage("reels_main7.png"));
+}
+
+// Create comment inputs and buttons
+function setupComments() {
+  for (let i = 0; i < feedCount; i++) {
+    let inp = createInput();
+    inp.parent('feed-container');
+    inp.size(width - 180);
+    inp.style('background-color', 'rgba(255, 255, 255, 0.6)');
+    inp.style('border-radius', '12px');
+    inp.style('border', 'none');
+    inp.style('padding', '8px');
+    inp.style('font-size', '14px');
+    inp.hide();
+    commentInputs.push(inp);
+
+    let btn = createButton('보내기');
+    btn.parent('feed-container');
+    btn.style('background-color', 'rgba(55, 115, 219, 0.6)');
+    btn.style('color', '#ffffff');
+    btn.style('border-radius', '12px');
+    btn.style('border', 'none');
+    btn.style('padding', '8px 12px');
+    btn.style('font-size', '14px');
+    btn.style('cursor', 'pointer');
+    btn.hide();
+    btn.mousePressed(submitComment);
+    submitButtons.push(btn);
+
+    let y = i * feedHeight + feedHeight - 65;
+    inp.position(51, y + 250);
+    btn.position(59 + inp.width + 10, y + 250);
+  }
+}
+
+// Draw bottom icons, like info, and comments
+function drawBottomSection(feedIdx) {
+  drawBottomIcons(feedIdx);
+  drawLikesInfo();
+  drawCommentBubbles(feedIdx);
+}
+
+// 페이지 인디케이터 그리기
+function drawPageIndicator(count, idx) {
+  let py = (feedHeight + width) / 2 - 28;
+  let spacing = 13;
+  let size = 7;
+  for (let i = 0; i < count; i++) {
+    fill(i === idx ? "#1DA1F2" : "#555");
+    noStroke();
+    ellipse(width/2 + (i - (count-1)/2) * spacing, py, size);
+  }
+}
+
+// 하단 아이콘과 숫자 표시
+function drawBottomIcons(feedIdx) {
+    fill("#FFF");
+    let num = -58;
+    let num2 = 2;
+
+    // update like display count if animating
+    if (likeAnimatingArr[feedIdx]) {
+      let t = (millis() - likeAnimStartTimeArr[feedIdx]) / likeAnimDuration;
+      if (t >= 1) {
+        likeDisplayCountArr[feedIdx] = likeEndCount;
+        likeAnimatingArr[feedIdx] = false;
+      } else {
+        likeDisplayCountArr[feedIdx] = lerp(likeStartCount, likeEndCount, t);
+      }
+    }
+
+    // image(heartIcon, 32, feedHeight - 40 + num, 30, 30);
+    image(likedArr[feedIdx] ? heartIcon : heartEmptyIcon, 32, feedHeight - 40 + num, 30, 30);
+    text(`${likeDisplayCountArr[feedIdx].toFixed(1)}만`, 52, feedHeight - 40 + num + num2);
+    image(msgIcon, 136, feedHeight - 40 + num, 30, 30);
+    text("8,507", 154, feedHeight - 40 + num + num2);
+    image(sentIcon, 224, feedHeight - 40 + num, 30, 30);
+    text("3.8만", 241, feedHeight - 40 + num + num2);
+    image(tagIcon, width - 38, feedHeight - 40 + num, 27, 30);
+    // eraser icon
+    image(eraserIcon, width - 68, feedHeight - 40 + num, 30, 30);
+}
+
+// 좋아요 및 날짜 정보 그리기 (세 번째 영역)
+function drawLikesInfo() {
+  let ay = baseH - 10; // position 20px below original layout
+  let size = 24;
+  // 첫 번째 아바타 이미지
+  drawCircularImage(likeAvatar1, 16 + size/2, ay, size/2);
+  // 두번째 아바타: 흰 원 + 이미지
+  fill(255);
+  drawCircularImage(likeAvatar2, 16 + size + 10, ay, size/2);
+  // 텍스트
+  fill(255);
+  textSize(14);
+  textAlign(LEFT, CENTER);
+  text("karina_asp 님 외 여러 명이 좋아합니다", 16 + size*2 + 8, ay);
+  // 날짜
+  fill(150);
+  text("4월 29일", 16, baseH + 22); // position 45px below original layout
+}
+
+// 댓글 말풍선 애니메이션 (대화 스타일)
+function drawCommentBubbles(feedIdx) {
+  if (!commentsVisibleArr[feedIdx]) return;
+  let elapsed = millis() - commentAnimStartArr[feedIdx];
+  push();
+  // 반투명 배경
+  fill(0, 180);
+  rect(0, 0, width, feedHeight);
+  textSize(14);
+  textAlign(LEFT, TOP);
+
+  let startY = 60;
+  let lineH = 48;
+
+  const feedComments = commentsArr[feedIdx];
+  for (let i = 0; i < feedComments.length; i++) {
+    let alpha;
+    if (initialCommentLoadArr[feedIdx] && commentAnimActiveArr[feedIdx]) {
+      let appearTime = i * commentAnimDelay;
+      let t = constrain((elapsed - appearTime) / commentFadeDuration, 0, 1);
+      alpha = t * 255;
+      if (i === feedComments.length - 1 && t === 1) {
+        commentAnimActiveArr[feedIdx] = false;
+        initialCommentLoadArr[feedIdx] = false;
+      }
+    } else if (!initialCommentLoadArr[feedIdx] && i === lastAnimIndexArr[feedIdx] && commentAnimActiveArr[feedIdx]) {
+      let t = constrain(elapsed / commentFadeDuration, 0, 1);
+      alpha = t * 255;
+      if (t >= 1) {
+        commentAnimActiveArr[feedIdx] = false;
+      }
+    } else {
+      alpha = 255;
+    }
+    let bubbleAlpha = alpha * 0.5;
+    let msg = feedComments[i];
+
+    // Bubble dimensions
+    let padding = 12;
+    let tw = textWidth(msg);
+    let bw = tw + padding * 2;
+    let bh = textAscent() + textDescent() + padding;
+    let by = startY + i * lineH;
+    let bx, bubbleColor, textColor;
+
+    if (i % 2 === 0) {
+      bubbleColor = [55, 115, 219, bubbleAlpha];
+      textColor = [255, 255, 255, alpha];
+      bx = width - bw - 20;
+    } else {
+      bubbleColor = [255, 255, 255, bubbleAlpha];
+      textColor = [0, 0, 0, alpha];
+      bx = 20;
+    }
+
+    fill(...bubbleColor);
+    noStroke();
+    rect(bx, by, bw, bh, 12);
+    fill(...bubbleColor);
+    triangle(
+      i % 2 === 0 ? bx + bw - 16 : bx + 16, by + bh,
+      i % 2 === 0 ? bx + bw - 24 : bx + 24, by + bh,
+      i % 2 === 0 ? bx + bw - 20 : bx + 20, by + bh + 8
+    );
+    fill(...textColor);
+    text(msg, bx + padding, by + (padding / 2) + 3);
+  }
+
+  pop();
+}
+
+function preload() {
+  loadAssets();
+}
+
+function drawUpperLine(feedIdx) {
+  // Profile circle
+  drawCircularImage(profileImg, 37, 30, 18);
+
+  // Username text
+  fill(255);
+  textSize(18);
+  const textX = 68;
+  const textY = 32;
+  const name = usernames[feedIdx];
+  text(name, textX, textY);
+
+  // Badge positioned after text with consistent gap
+  const badgePadding = 17; // gap between text and badge
+  const badgeSize = 26;
+  const badgeX = textX + textWidth(name) + badgePadding;
+  const badgeY = textY - badgeSize / 2 + 14; // vertically center badge to text baseline
+  image(blueCheck, badgeX, badgeY, badgeSize, badgeSize);
+
+  // "etc" icon at right
+  image(etcIcon, width - 28, 30, 23, 32);
+}
+
+// 댓글 전송 핸들러
+function submitComment() {
+  let inp = commentInputs[currentCommentFeedIdx];
+  let newComment = inp.value().trim();
+  if (newComment) {
+    const idx = currentCommentFeedIdx;
+    commentsArr[idx].push(newComment);
+    storedComments.push(newComment);
+    lastAnimIndexArr[idx] = commentsArr[idx].length - 1;
+    commentAnimStartArr[idx] = millis();
+    commentAnimActiveArr[idx] = true;
+    initialCommentLoadArr[idx] = false;
+    commentsVisibleArr[idx] = true;
+    inp.value('');
+  }
+}
+
+// Close comment input if click is outside comment area
+function closeCommentInput(feedIdx, localY) {
+  const ix = commentInputs[feedIdx].x;
+  const iy = commentInputs[feedIdx].y;
+  const iw = commentInputs[feedIdx].width;
+  const ih = 24;
+  const bx0 = submitButtons[feedIdx].x;
+  const by0 = submitButtons[feedIdx].y;
+  const bw0 = 50;
+  const bh0 = 24;
+  const mx0 = 136, my0 = feedHeight - 40 - 58, mw0 = 30, mh0 = 30;
+  if (commentsVisibleArr[feedIdx]) {
+    const overMsg = mouseX > mx0 - mw0/2 && mouseX < mx0 + mw0/2
+                 && localY > my0 - mh0/2 && localY < my0 + mh0/2;
+    const overInput = mouseX > ix && mouseX < ix + iw
+                    && mouseY > iy && mouseY < iy + ih;
+    const overBtn = mouseX > bx0 && mouseX < bx0 + bw0
+                  && mouseY > by0 && mouseY < by0 + bh0;
+    if (!overMsg && !overInput && !overBtn) {
+      commentsVisibleArr[feedIdx] = false;
+      commentAnimActiveArr[feedIdx] = false;
+      commentInputs[feedIdx].hide();
+      submitButtons[feedIdx].hide();
+      return true;
+    }
+  }
+  return false;
+}
+
+// Toggle like state when heart icon clicked
+function toggleLike(feedIdx, localY) {
+  const hx = 32, hy = feedHeight - 40 - 58, hw = 30, hh = 30;
+  if (mouseX > hx - hw/2 && mouseX < hx + hw/2
+   && localY > hy - hh/2 && localY < hy + hh/2) {
+    likedArr[feedIdx] = !likedArr[feedIdx];
+    if (likedArr[feedIdx]) {
+      likeDisplayCountArr[feedIdx] = likeStartCount;
+      likeAnimStartTimeArr[feedIdx] = millis();
+      likeAnimatingArr[feedIdx] = true;
+    } else {
+      likeDisplayCountArr[feedIdx] = likeStartCount;
+    }
+    return true;
+  }
+  return false;
+}
+
+// Show comment input when comment icon clicked
+function openCommentInput(feedIdx, localY) {
+  const mx = 136, my = feedHeight - 40 - 58, mw = 30, mh = 30;
+  if (mouseX > mx - mw/2 && mouseX < mx + mw/2
+   && localY > my - mh/2 && localY < my + mh/2) {
+    currentCommentFeedIdx = feedIdx;
+    commentsVisibleArr[feedIdx] = true;
+    commentAnimStartArr[feedIdx] = millis();
+    commentAnimActiveArr[feedIdx] = true;
+    initialCommentLoadArr[feedIdx] = true;
+    lastAnimIndexArr[feedIdx] = -1;
+    commentInputs[feedIdx].show();
+    submitButtons[feedIdx].show();
+    return true;
+  }
+  return false;
+}
+
+// Change feed image if click in image region
+function changeFeedImage(feedIdx, localY) {
+  const yStart = (feedHeight - width) / 2 - 15;
+  const yEnd = yStart + width;
+  if (localY > yStart && localY < yEnd) {
+    prevIdxs[feedIdx] = idxs[feedIdx];
+    if (mouseX < width / 2) {
+      idxs[feedIdx] = (idxs[feedIdx] + imgs.length - 1) % imgs.length;
+      transitionDir = -1;
+    } else {
+      idxs[feedIdx] = (idxs[feedIdx] + 1) % imgs.length;
+      transitionDir = 1;
+    }
+    isTransitioningArr[feedIdx] = true;
+    transitionStarts[feedIdx] = millis();
+    return true;
+  }
+  return false;
+}
+
+function setup() {
+  // 캔버스 생성
+  let c = createCanvas(390, feedHeight * feedCount);
+  c.parent('feed-container');
+  imageMode(CENTER);
+  textFont("Arial");
+  textAlign(LEFT, CENTER);
+
+  setupComments();
+  // No heart initialization here (moved to startHeartBurst)
+}
+
+// Draws the feed image with sliding transition
+function drawFeedImage(feedIdx) {
+  if (isTransitioningArr[feedIdx]) {
+    let t = (millis() - transitionStarts[feedIdx]) / transitionDuration;
+    if (t >= 1) {
+      t = 1;
+      isTransitioningArr[feedIdx] = false;
+    }
+    let prevOffset = transitionDir * (-t) * width;
+    drawCoverSquare(imgs[prevIdxs[feedIdx]], prevOffset, (feedHeight - width) / 2 - 46, width, width);
+    let currOffset = transitionDir * (1 - t) * width;
+    drawCoverSquare(imgs[idxs[feedIdx]], currOffset, (feedHeight - width) / 2 - 46, width, width);
+  } else {
+    drawCoverSquare(imgs[idxs[feedIdx]], 0, (feedHeight - width) / 2 - 46, width, width);
+  }
+}
+
+function drawFeed(feedIdx) {
+  // draw feed background
+  noStroke();
+  fill(0);
+  rect(0, 0, width, feedHeight);
+  // 윗 라인
+  drawUpperLine(feedIdx);
+  // 이미지 본문 및 슬라이드 애니메이션
+  drawFeedImage(feedIdx);
+  // 페이지 인디케이터
+  drawPageIndicator(imgs.length, idxs[feedIdx]);
+  // 하단 아이콘, 좋아요 정보, 댓글
+  drawBottomSection(feedIdx);
+}
+
+// Handle pull start on Reels screen
+function handleReelsMousePressed() {
+  if (!isFeedScreen && mouseY < 50) {
+    isPulling = true;
+    pullStartY = mouseY;
+    pullDistance = 0;
+    return true;
+  }
+  return false;
+}
+// Handle pull move
+function handleReelsMouseDragged() {
+  if (isPulling) {
+    pullDistance = constrain(mouseY - pullStartY, 0, 200);
+    return true;
+  }
+  return false;
+}
+// Handle pull release
+function handleReelsMouseReleased() {
+  if (isPulling) {
+    if (pullDistance > pullThreshold) {
+      refreshBgColor = color(random(255), random(255), random(255));
+      isRefreshing = true;
+      refreshStartTime = millis();
+      // perform refresh logic
+      loadAssets();
+    }
+    isPulling = false;
+    return true;
+  }
+  return false;
+}
+// Draw pull-to-refresh spinner
+function drawPullToRefresh() {
+  let y = pullDistance / 2 + 50;
+  let angle = isRefreshing
+    ? ((millis() - refreshStartTime) / 400) * TWO_PI
+    : map(pullDistance, 0, pullThreshold, 0, PI);
+  push();
+  translate(width/2, y);
+  noFill();
+  stroke(255); // Spinner is now white
+  strokeWeight(4);
+  arc(0, 0, 30, 30, 0, angle);
+  pop();
+  if (isRefreshing && millis() - refreshStartTime > 400) {
+    isRefreshing = false;
+    startHeartBurst();
+    pullDistance = 0;
+    refreshBgColor = null;
+  }
+}
+
+function drawReelsScreen() {
+  // Determine dimensions based on current reel image
+  const currentImg = reelsImgs[isReelTransitioning ? reelIdx : reelIdx];
+  const iw = width;
+  const ih = currentImg.height * (width / currentImg.width);
+  resizeCanvas(width, ih);
+  select('#feed-container').style('overflow-y', 'hidden');
+  
+  // Background during pull-to-refresh
+  if (isPulling || isRefreshing) {
+    background(0);
+  } else if (refreshBgColor !== null) {
+    background(refreshBgColor);
+  } else {
+    background(0);
+  }
+
+  if (isReelTransitioning) {
+    // Calculate transition progress
+    let t = (millis() - reelTransitionStart) / reelTransitionDuration;
+    if (t >= 1) {
+      t = 1;
+      isReelTransitioning = false;
+    }
+    // Previous and next images
+    const prevImg = reelsImgs[prevReelIdx];
+    const nextImg = reelsImgs[reelIdx];
+    // Heights for each image (maintain aspect ratio)
+    const prevH = prevImg.height * (width / prevImg.width);
+    const nextH = nextImg.height * (width / nextImg.width);
+
+    // Compute Y positions depending on scroll direction
+    let prevY, nextY;
+    if (reelTransitionDir === 1) {
+      // scrolling down: previous moves up, next comes from below
+      prevY = ih / 2 - t * ih;
+      nextY = ih / 2 + (ih - t * ih);
+    } else {
+      // scrolling up: previous moves down, next comes from above
+      prevY = ih / 2 + t * ih;
+      nextY = ih / 2 - (ih - t * ih);
+    }
+    // Draw both images with pull-distance offset
+    push();
+    translate(0, pullDistance);
+    imageMode(CENTER);
+    image(prevImg, width / 2, prevY, iw, prevH);
+    image(nextImg, width / 2, nextY, iw, nextH);
+    pop();
+  } else {
+    // No transition: draw single current image
+    push();
+    translate(0, pullDistance);
+    imageMode(CENTER);
+    image(currentImg, width / 2, ih / 2, iw, ih);
+    pop();
+  }
+  if (reelIdx === 4 && !isReelTransitioning) {
+    // Embed aniA/index.html as part of the reel inside the feed-container
+    const container = document.getElementById('feed-container');
+    // Ensure container clips the iframe and is positioned relative
+    container.style.position = 'relative';
+    container.style.overflow = 'hidden';
+    if (!document.getElementById('aniA-frame')) {
+      const iframe = document.createElement('iframe');
+      iframe.id = 'aniA-frame';
+      iframe.src = 'aniA/index.html';
+      iframe.style.position = 'absolute';
+      iframe.style.top = '0';
+      iframe.style.left = '0';
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.style.border = 'none';
+      iframe.style.zIndex = '998'; // below bottom overlay and phone frame
+      iframe.style.pointerEvents = 'auto';
+      iframe.style.opacity = '0';
+      iframe.style.transition = 'opacity 1.5s ease';
+      container.appendChild(iframe);
+      // Fade in iframe smoothly after it is in the DOM
+      requestAnimationFrame(() => {
+        iframe.style.opacity = '1';
+      });
+      // Ensure wheel events inside the iframe propagate to the parent so Reels can detect scroll
+      iframe.onload = function () {
+        iframe.contentWindow.addEventListener(
+          'wheel',
+          function (e) {
+            // Relay the wheel delta to the parent window
+            window.dispatchEvent(
+              new WheelEvent('wheel', {
+                deltaY: e.deltaY,
+                deltaX: e.deltaX,
+                deltaMode: e.deltaMode,
+              })
+            );
+            // Prevent the iframe from scrolling internally
+            e.preventDefault();
+          },
+          { passive: false }
+        );
+      };
+    }
+    if (reel4StartTime === null) {
+      reel4StartTime = millis();
+    }
+  } else {
+    reel4StartTime = null;
+    const existing = document.getElementById('aniA-frame');
+    if (existing) existing.remove();
+  }
+  // Embed aniB/index.html when on reel 5
+  if (reelIdx === 5 && !isReelTransitioning) {
+    const containerB = document.getElementById('feed-container');
+    containerB.style.position = 'relative';
+    containerB.style.overflow = 'hidden';
+    if (!document.getElementById('aniB-frame')) {
+      const iframeB = document.createElement('iframe');
+      iframeB.id = 'aniB-frame';
+      iframeB.src = 'aniB/index.html';
+      iframeB.style.position = 'absolute';
+      iframeB.style.top = '0';
+      iframeB.style.left = '0';
+      iframeB.style.width = '100%';
+      iframeB.style.height = '100%';
+      iframeB.style.border = 'none';
+      iframeB.style.zIndex = '998';
+      iframeB.style.pointerEvents = 'auto';
+      iframeB.style.opacity = '0';
+      iframeB.style.transition = 'opacity 1.4s ease';
+      containerB.appendChild(iframeB);
+      requestAnimationFrame(() => {
+        iframeB.style.opacity = '1';
+      });
+      iframeB.onload = function () {
+        iframeB.contentWindow.addEventListener(
+          'wheel',
+          function (e) {
+            window.dispatchEvent(
+              new WheelEvent('wheel', {
+                deltaY: e.deltaY,
+                deltaX: e.deltaX,
+                deltaMode: e.deltaMode,
+              })
+            );
+            e.preventDefault();
+          },
+          { passive: false }
+        );
+      };
+    }
+  } else {
+    const existingB = document.getElementById('aniB-frame');
+    if (existingB) existingB.remove();
+  }
+  // Embed aniC/index.html when on reel 6
+  if (reelIdx === 6 && !isReelTransitioning) {
+    const containerC = document.getElementById('feed-container');
+    containerC.style.position = 'relative';
+    containerC.style.overflow = 'hidden';
+    if (!document.getElementById('aniC-frame')) {
+      const iframeC = document.createElement('iframe');
+      iframeC.id = 'aniC-frame';
+      iframeC.src = 'aniC/index.html';
+      iframeC.style.position = 'absolute';
+      iframeC.style.top = '0';
+      iframeC.style.left = '0';
+      iframeC.style.width = '100%';
+      iframeC.style.height = '100%';
+      iframeC.style.border = 'none';
+      iframeC.style.zIndex = '998';
+      iframeC.style.pointerEvents = 'auto';
+      iframeC.style.opacity = '0';
+      iframeC.style.transition = 'opacity 1.4s ease';
+      containerC.appendChild(iframeC);
+      requestAnimationFrame(() => {
+        iframeC.style.opacity = '1';
+      });
+      iframeC.onload = function () {
+        iframeC.contentWindow.addEventListener(
+          'wheel',
+          function (e) {
+            window.dispatchEvent(
+              new WheelEvent('wheel', {
+                deltaY: e.deltaY,
+                deltaX: e.deltaX,
+                deltaMode: e.deltaMode,
+              })
+            );
+            e.preventDefault();
+          },
+          { passive: false }
+        );
+      };
+    }
+  } else {
+    const existingC = document.getElementById('aniC-frame');
+    if (existingC) existingC.remove();
+  }
+  if (reelIdx === 8) {
+    if (reel5StartTime === null) {
+      reel5StartTime = millis();
+    }
+  } else {
+    reel5StartTime = null;
+  }
+  if (reelIdx === 7 && storedComments.length > 0) {
+    if (reel8StartTime === null) {
+      reel8StartTime = millis();
+    }
+    // Sequential fade-in/fade-out for each bubble, all in one frame.
+    const commentStartDelay = 1; // seconds before comments start
+    let elapsed = max(0, (millis() - reel8StartTime) / 1000 - commentStartDelay);
+    let cycle = 2;      // seconds between each bubble's start
+    let fadeDur = 1;    // seconds for fade-in and fade-out
+    let count = storedComments.length;
+    textSize(14);
+    textAlign(LEFT, TOP);
+    let padding = 12, spacing = 18;
+    let centerY = ih * 9 / 16;
+    // Precompute bubble sizes for all comments
+    let bubbleWidths = [], bubbleHeights = [];
+    for (let i = 0; i < count; i++) {
+      let tw = textWidth(storedComments[i]);
+      bubbleWidths.push(tw + padding*2);
+      bubbleHeights.push(textAscent() + textDescent() + padding);
+    }
+    for (let i = 0; i < count; i++) {
+      let startTime = i * cycle;
+      let t = elapsed - startTime;
+      if (t < 0) continue;                    // not yet appeared
+      let alpha;
+      if (t < fadeDur) {                      // fade-in
+        alpha = t / fadeDur * 255;
+      } else if (t < cycle) {                 // fully visible
+        alpha = 255;
+      } else if (t < cycle + fadeDur) {       // fade-out
+        alpha = (1 - (t - cycle) / fadeDur) * 255;
+      } else {
+        continue;                             // done fading
+      }
+      let bw = bubbleWidths[i], bh = bubbleHeights[i];
+      let bx = (width - bw) / 2;
+      let y = centerY - i * (bh + spacing);
+      let bubbleAlpha = alpha * 0.6;
+      fill(60,60,60,bubbleAlpha); noStroke();
+      rect(bx, y, bw, bh, 12);
+      fill(30,30,30,bubbleAlpha);
+      let tx = bx + bw/2 - 10;
+      triangle(tx, y+bh, tx+6, y+bh, tx, y+bh+8);
+      fill(255,255,255,alpha);
+      text(storedComments[i], bx+padding, y+(padding/2)+3);
+    }
+  } else if (reelIdx === 7) {
+    reel8StartTime = null;
+  }
+
+  if (reelIdx === 8) {
+    let fullText = "지나가는 말이, 깊게 스며들었다.";
+    let elapsed = millis() - reel5StartTime;
+    textSize(20);
+    textAlign(CENTER, CENTER);
+    fill(255);
+    let displayText = "";
+    // After 3s of cursor blinking, start typing
+    let typingDelay = 3000; // ms
+    let typingElapsed = max(0, elapsed - typingDelay);
+    if (typingElapsed > 0) {
+      let charInterval = 180; // ms per char
+      // base chars without pauses
+      let rawChars = floor(typingElapsed / charInterval);
+      // positions to pause at
+      let commaPos = fullText.indexOf(',') + 1;
+      let depthPos = fullText.indexOf('깊게') + '깊게'.length;
+      let pauseDur = 2000; // 2s pause
+
+      let charsToShow;
+      if (rawChars < commaPos) {
+        charsToShow = rawChars;
+      } else if (typingElapsed < commaPos * charInterval + pauseDur) {
+        // during first pause after comma
+        charsToShow = commaPos;
+      } else if (rawChars < depthPos + pauseDur / charInterval) {
+        // resume until depth position reached
+        charsToShow = rawChars - pauseDur / charInterval;
+      } else if (typingElapsed < depthPos * charInterval + pauseDur + pauseDur) {
+        // second pause after 깊게
+        charsToShow = depthPos;
+      } else {
+        // after second pause
+        charsToShow = rawChars - 2 * (pauseDur / charInterval);
+      }
+      charsToShow = constrain(charsToShow, 0, fullText.length);
+      displayText = fullText.substring(0, charsToShow);
+    }
+    // Draw the text (may be empty during initial blink)
+    text(displayText, width / 2, ih / 2);
+    // Blinking cursor with 300ms initial delay
+    let cursorDelay = 300;         // ms before cursor starts
+    let cursorBlinkInterval = 500; // ms per blink
+    let blinkOn = false;
+    if (elapsed > cursorDelay) {
+      blinkOn = floor((elapsed - cursorDelay) / cursorBlinkInterval) % 2 === 0;
+    }
+    if (blinkOn) {
+      // Determine text width for cursor position
+      let tw = textWidth(displayText);
+      // If no text yet, center cursor
+      let startX = width / 2 - tw / 2;
+      let cursorX = startX + tw + 2;
+      let textAscentVal = textAscent();
+      let textDescentVal = textDescent();
+      let cursorY1 = ih / 2 - textAscentVal / 2;
+      let cursorY2 = ih / 2 + textDescentVal / 2;
+      stroke(255);
+      strokeWeight(2);
+      line(cursorX, cursorY1, cursorX, cursorY2);
+      noStroke();
+    }
+  }
+
+  // Pull-to-refresh spinner if needed
+  if (isPulling || isRefreshing) {
+    drawPullToRefresh();
+    return;
+  }
+  if (hearts.length > 0) {
+    runHeartAnimation();
+    return;
+  }
+}
+
+function drawInstagramUpper() {
+  imageMode(CORNER);
+  image(instaUpperImg, 3, 7, width - 10, instaUpperImg.height * (width / instaUpperImg.width));
+}
+
+function drawAllFeeds() {
+  let instaUpperOffset = 6;
+  translate(0, instaUpperImg.height * (width / instaUpperImg.width) + instaUpperOffset);
+  imageMode(CENTER);
+  for (let i = 0; i < feedCount; i++) {
+    push();
+    translate(0, i * feedHeight);
+    drawFeed(i);
+    pop();
+  }
+}
+
+function drawFeedScreen() {
+  // Restore canvas size and enable container scrolling for feed screen
+  resizeCanvas(width, feedHeight * feedCount);
+  select('#feed-container').style('overflow-y', 'auto');
+  drawInstagramUpper();
+  drawAllFeeds();
+}
+
+function draw() {
+  clear();
+
+  if (!isFeedScreen) {
+    drawReelsScreen();
+    return;
+  }
+  
+  drawFeedScreen();
+}
+
+function handleBottomOverlayClick() {
+  const overlayHeight = 60;
+  const overlayY = height - overlayHeight;
+  if (
+    mouseY >= overlayY &&
+    mouseY <= height &&
+    mouseX >= 0 &&
+    mouseX <= width
+  ) {
+    isFeedScreen = mouseX < width / 2;
+    return true;
+  }
+  return false;
+}
+
+function handleFeedInteraction(event) {
+  const overlayH = instaUpperImg.height * (width / instaUpperImg.width);
+  const adjustedY = mouseY - overlayH;
+
+  let feedIdx = Math.floor(adjustedY / feedHeight);
+  let localY = adjustedY - feedIdx * feedHeight;
+
+  if (event.target.id !== 'defaultCanvas0') return;
+  if (feedIdx < 0 || feedIdx >= feedCount) return;
+
+  if (closeCommentInput(feedIdx, localY)) return;
+  if (toggleLike(feedIdx, localY)) return;
+  if (openCommentInput(feedIdx, localY)) return;
+  if (changeFeedImage(feedIdx, localY)) return;
+}
+
+function mousePressed(event) {
+  if (handleReelsMousePressed()) return;
+  if (handleBottomOverlayClick()) return;
+  handleFeedInteraction(event);
+}
+
+function mouseDragged(event) {
+  if (handleReelsMouseDragged()) return;
+}
+function mouseReleased(event) {
+  if (handleReelsMouseReleased()) return;
+}
+
+function mouseWheel(event) {
+  // 릴스 화면 중이며 애니메이션이 진행 중이지 않을 때만 처리
+  if (!isFeedScreen && !isReelTransitioning) {
+    // 스크롤 델타를 누적
+    reelScrollAccum += event.deltaY;
+    // 누적값이 임계치 이상일 때만 한번 전환 트리거
+    if (abs(reelScrollAccum) >= reelScrollThreshold) {
+      prevReelIdx = reelIdx;
+      if (reelScrollAccum > 0) {
+        reelIdx = (reelIdx + 1) % reelsImgs.length;
+        reelTransitionDir = 1;
+      } else {
+        reelIdx = (reelIdx - 1 + reelsImgs.length) % reelsImgs.length;
+        reelTransitionDir = -1;
+      }
+      isReelTransitioning = true;
+      reelTransitionStart = millis();
+      reelScrollAccum = 0; // 누적값 초기화
+    }
+    return false; // 기본 스크롤 방지
+  }
+}
+// Preload alternate bottom image for smooth switching
+const bottomAltImg = new Image();
+bottomAltImg.src = 'insta_bottom2.jpeg';
+
+// Add fade transition via CSS
+const instaBottom = document.getElementById('insta-bottom');
+instaBottom.style.transition = 'opacity 0.3s';
+instaBottom.style.cursor = 'pointer'; // indicate clickable
+
+instaBottom.addEventListener('click', function(event) {
+  instaBottom.style.opacity = '0';
+  const rect = instaBottom.getBoundingClientRect();
+  const clickX = event.clientX - rect.left;
+  if (clickX < rect.width / 2) {
+    // left half clicked: show original insta_bottom.png
+    instaBottom.src = 'insta_bottom3.png';
+    isFeedScreen = true;
+    document.getElementById('feed-container').scrollTop = 0;
+    instaBottom.onload = () => {
+      instaBottom.style.opacity = '1';
+    };
+    instaBottom.style.top = 'calc(38% + 394px)';
+  } else {
+    // right half clicked: show alternate insta_bottom2.jpeg
+    instaBottom.src = 'insta_bottom2.jpeg';
+    isFeedScreen = false;
+    document.getElementById('feed-container').scrollTop = 0;
+    instaBottom.onload = () => {
+      instaBottom.style.opacity = '1';
+    };
+    instaBottom.style.top = 'calc(38% + 394px)';
+  }
+});
+</script>
+<img id="phone-frame" src="phone_layout.png" alt="Phone frame overlay">
+</body>
+</html>

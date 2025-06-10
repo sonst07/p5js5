@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>캐릭터 애니메이션</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+</head>
+<body>
+    <script>
+        // 이미지 변수 선언 (파일명과 동일)
+        let earlyAHead, earlyARightArm, earlyALeftArm, earlyABody, earlyAFace, happyAFace, sadAFace, ARightArmV;
+        let moveABody, moveARightArm, moveALeftArm, moveARightLeg, moveALeftLeg, moveHappyAFace, moveSadAFace;
+        let bg;
+        let currentState = 'early';
+        let imageX, imageY;
+        let sadAStartFrame = 0;
+        let happyAStartFrame = 0;
+
+        function preload() {
+            // 모든 에셋 프리로드
+            earlyAHead = loadImage('earlyAHead.png');
+            earlyARightArm = loadImage('earlyARightArm.png');
+            earlyALeftArm = loadImage('earlyALeftArm.png');
+            earlyABody = loadImage('earlyABody.png');
+            earlyAFace = loadImage('earlyAFace.png');
+            happyAFace = loadImage('happyAFace.png');
+            sadAFace = loadImage('sadAFace.png')
+            ARightArmV = loadImage('ARightArmV.png');
+            moveABody = loadImage('moveABody.png');
+            moveARightArm = loadImage('moveARightArm.png');
+            moveALeftArm = loadImage('moveALeftArm.png');
+            moveARightLeg = loadImage('moveARightLeg.png');
+            moveALeftLeg = loadImage('moveALeftLeg.png');
+            moveHappyAFace = loadImage('moveHappyAFace.png');
+            moveSadAFace = loadImage('moveSadAFace.png');
+            bg = loadImage('bg.png');
+        }
+
+        function setup() {
+            createCanvas(600, 900);
+            imageX = width/2;
+            imageY = height/2;
+        }
+
+        function draw() {
+  
+            push();
+            imageMode(CENTER);
+            image(bg,imageX,imageY,600,900);
+            drawCharacterA();
+            pop();
+            
+        }
+
+        // 초기 상태 드로잉 함수
+        function drawEarlyA() {
+            image(earlyAHead, imageX, imageY,600,600);
+            image(earlyARightArm, imageX, imageY,600,600);
+            image(earlyALeftArm, imageX, imageY,600,600);
+            image(earlyABody, imageX, imageY,600,600);
+            image(earlyAFace, imageX, imageY,600,600);
+        }
+
+        // 행복한 상태 함수(Ai)
+       function drawHappyA() {
+            let moveTime = frameCount - happyAStartFrame;
+            if(moveTime < 60){
+                image(earlyAHead, imageX, imageY,600,600);
+                image(earlyALeftArm, imageX, imageY,600,600);
+                image(ARightArmV, imageX, imageY,600,600);
+                image(earlyABody, imageX, imageY,600,600);
+                image(happyAFace, imageX, imageY,600,600);
+            } else {
+                // 모든 그림이 오른쪽으로 움직임
+                let baseX = imageX + (moveTime - 60);  // 계속 오른쪽으로 이동
+        
+                // 팔다리 흔들림 
+                let armSwing = sin(frameCount * 0.1) * 0.4;
+                let legSwing = sin(frameCount * 0.1 + PI) * 0.4;
+
+               // 왼팔
+                push();
+                translate(baseX, imageY);  // 몸통 따라 이동
+                translate(25, -15);        // 어깨 위치
+                rotate(-armSwing);
+                image(moveALeftArm, -20, 15, 600, 600);
+                pop();
+
+                // 왼다리
+                push();
+                translate(baseX, imageY);
+                translate(25, 100);        // 다리 위치
+                rotate(-legSwing);
+                image(moveALeftLeg, -20, -80, 600, 600);
+                pop();
+
+                // 오른다리
+                push();
+                translate(baseX, imageY);
+                translate(25, 100);
+                rotate(legSwing);
+                image(moveARightLeg, -20, -80, 600, 600);
+                pop();
+
+                // 몸통
+                image(moveABody, baseX, imageY, 600, 600);
+                image(moveHappyAFace,baseX,imageY,600,600);
+
+                // 오른팔  
+                push();
+                translate(baseX, imageY);
+                translate(25, -15);
+                rotate(armSwing);
+                image(moveARightArm, -20, 15, 600, 600);
+                pop();
+            }
+        }
+
+        // 슬픈 상태 함수(Ai)
+        function drawSadA() {
+            let moveTime = frameCount - sadAStartFrame;
+            if(moveTime < 60){
+                image(earlyAHead, imageX, imageY,600,600);
+                image(earlyALeftArm, imageX, imageY,600,600);
+                image(earlyARightArm, imageX, imageY,600,600);
+                image(earlyABody, imageX, imageY,600,600);
+                image(sadAFace, imageX, imageY,600,600);
+            } else {
+                // 모든 그림이 오른쪽으로 움직임
+                let baseX = imageX + (moveTime - 60);  // 계속 오른쪽으로 이동
+        
+                // 팔다리 흔들림 
+                let armSwing = sin(frameCount * 0.1) * 0.4;
+                let legSwing = sin(frameCount * 0.1 + PI) * 0.4;
+
+               // 왼팔
+                push();
+                translate(baseX, imageY);  // 몸통 따라 이동
+                translate(25, -15);        // 어깨 위치
+                rotate(-armSwing);
+                image(moveALeftArm, -20, 15, 600, 600);
+                pop();
+
+                // 왼다리
+                push();
+                translate(baseX, imageY);
+                translate(25, 100);        // 다리 위치
+                rotate(-legSwing);
+                image(moveALeftLeg, -20, -80, 600, 600);
+                pop();
+
+                // 오른다리
+                push();
+                translate(baseX, imageY);
+                translate(25, 100);
+                rotate(legSwing);
+                image(moveARightLeg, -20, -80, 600, 600);
+                pop();
+
+                // 몸통
+                image(moveABody, baseX, imageY, 600, 600);
+                image(moveSadAFace,baseX,imageY,600,600);
+
+                // 오른팔  
+                push();
+                translate(baseX, imageY);
+                translate(25, -15);
+                rotate(armSwing);
+                image(moveARightArm, -20, 15, 600, 600);
+                pop();
+            }
+
+        
+        }
+
+        function drawCharacterA(){
+            if(currentState === 'early') drawEarlyA();
+            else if(currentState === 'happy') drawHappyA();
+            else if(currentState === 'sad') drawSadA();
+        }
+
+        // 마우스 클릭 이벤트 핸들링(Ai)
+        function mousePressed() {
+            if(mouseX<width/3) {
+                currentState = 'happy';
+                happyAStartFrame = frameCount;
+            } else if(mouseX>width/3*2) {
+                currentState = 'sad';
+                sadAStartFrame = frameCount;
+            } else{
+                currentState = 'early';
+            }
+
+        }
+        
+    </script>
+</body>
+</html>

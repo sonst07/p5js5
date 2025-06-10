@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>캐릭터 C 애니메이션</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+</head>
+<body>
+    <script>
+        // 이미지 변수 선언
+        let earlyC, earlyCBag, sadC, sadCBag, darkBg, lightBg;
+        let currentState = 'early';
+        let imageX, imageY;
+        let sadCStartFrame = 0;
+        let happyCStartFrame = 0;
+        let scaleFactor, offsetX, offsetY;
+
+        function preload() {
+            // 모든 에셋 프리로드
+            earlyC    = loadImage('earlyC.png');
+            earlyCBag = loadImage('earlyCBag.png');
+            sadC      = loadImage('sadC.png');
+            sadCBag   = loadImage('sadCBag.png');
+            darkBg    = loadImage('darkBg.jpg');
+            lightBg   = loadImage('lightBg.png');
+        }
+
+        function setup() {
+            createCanvas(400, 600);
+            // calculate scaling to preserve 600×900 original ratio
+            scaleFactor = min(width / 600, height / 600);
+            offsetX     = (width  - 600 * scaleFactor) / 2;
+            offsetY     = (height - 600 * scaleFactor) / 2;
+            // set character center in original coordinate space
+            imageX = 600 / 2;
+            imageY = 600 / 2;
+        }
+
+        function draw() {
+            // apply scaling and centering
+            translate(offsetX, offsetY);
+            scale(scaleFactor);
+
+            push();
+            imageMode(CENTER);
+            background(255);
+            drawCharacterC();
+            drawButtons()
+            pop();
+        }
+
+        // 초기 상태 드로잉 함수
+        function drawEarlyC() {
+            image(darkBg,    imageX, imageY, 600, 900);
+            image(earlyC,    imageX, imageY, 600, 600);
+            image(earlyCBag, imageX, imageY, 600, 600);
+        }
+
+        // 행복한 상태 드로잉 함수 (천천히 작아지기) //앞으로 나아가고 튀는 효과 ai사용
+        function drawHappyC() {
+            image(lightBg, imageX - 2, imageY, 600, 900);
+
+            let moveTime      = frameCount - happyCStartFrame;
+            let delayDuration = 60;  // 1초(60프레임)
+
+            if (moveTime < delayDuration) {
+                // 불이 켜진 효과만 보여주고, 캐릭터는 움직이지 않음
+                image(earlyC,    imageX, imageY, 600, 600);
+                image(earlyCBag, imageX, imageY, 600, 600);
+            } else {
+                let adjustedTime = moveTime - delayDuration;
+                let scaleAmount  = max(0.3, 1 - adjustedTime * 0.003);
+                let bounce       = sin(adjustedTime * 0.2) * 2 * scaleAmount;  // 튀는 효과
+
+                push();
+                translate(imageX, imageY + bounce);
+                scale(scaleAmount);
+                image(earlyC,    0, 0, 600, 600);
+                image(earlyCBag, 0, 0, 600, 600);
+                pop();
+            }
+        }
+
+        // 슬픈 상태 애니메이션 함수 (가방이 떨어지고 상태 변경) //프레임별 애니메이션 ai사용용
+        function drawSadC() {
+            image(darkBg, imageX, imageY, 600, 900);
+
+            let moveTime = frameCount - sadCStartFrame;
+
+            if (moveTime < 60) {
+                // 가방이 떨어지는 애니메이션 (60프레임)
+                let bagY = imageY + moveTime * 3;
+                image(earlyC,    imageX, imageY, 600, 600);
+                image(earlyCBag, imageX, bagY,   600, 600);
+            } else if (moveTime < 90) {
+                // 바닥에 떨어진 가방 보여주기 (30프레임)
+                image(earlyC,    imageX, imageY, 600, 600);
+                image(sadCBag,   imageX, imageY, 600, 600);
+            } else {
+                // 슬픈 캐릭터로 변경
+                image(sadC,    imageX, imageY, 600, 600);
+                image(sadCBag, imageX, imageY, 600, 600);
+            }
+        }
+
+        
+
+function drawButtons() { //버튼 그리는 함수//ai사용용
+
+            textAlign(CENTER, CENTER)
+  textSize(20)
+  fill(255)
+  text("당신이 했던 말은?", width / 2+100, 100) // 버튼 위쪽에 출력
+
+    rectMode(CENTER)
+    textAlign(CENTER, CENTER)
+    textSize(20)
+    noStroke()
+
+    // 공통 버튼 스타일
+    const btnW = 120
+    const btnH = 50
+    const btnRadius = 15
+
+    // 마우스 오버 체크
+    const isHoverHappy = mouseX > 150 - btnW/2 && mouseX < 150 + btnW/2 && mouseY > 100 - btnH/2 && mouseY < 100 + btnH/2
+    const isHoverSad = mouseX > 450 - btnW/2 && mouseX < 450 + btnW/2 && mouseY > 100 - btnH/2 && mouseY < 100 + btnH/2
+
+    // 😊 긍정 버튼
+    push();
+    fill(isHoverHappy ? color(255, 230, 150) : color(255, 215, 100)) // hover 색상
+    drawingContext.shadowBlur = 10
+    drawingContext.shadowColor = 'rgba(0,0,0,0.2)'
+    drawingContext.shadowOffsetY = 2
+    rect(150, 100, btnW, btnH, btnRadius)
+    noStroke()
+    fill(50)
+    text("😊 긍정", 150, 100)
+    pop()
+
+    // 😢 부정 버튼
+    push()
+    fill(isHoverSad ? color(180, 220, 255) : color(130, 180, 255))// hover 색상
+    drawingContext.shadowBlur = 10
+    drawingContext.shadowColor = 'rgba(0,0,0,0.2)'
+    drawingContext.shadowOffsetY = 2
+    rect(450, 100, btnW, btnH, btnRadius)
+    noStroke()
+    fill(30)
+    text("😢 부정", 450, 100)
+    pop()
+}
+
+        function drawCharacterC() {
+            
+            if (currentState === 'early')      drawEarlyC();
+            else if (currentState === 'happy') drawHappyC();
+            else if (currentState === 'sad')   drawSadC();
+        }
+
+        // 마우스 클릭 이벤트 핸들링 //ai사용용
+        function mousePressed() {
+    // scale()과 translate() 적용 전의 원래 좌표로 되돌림
+    const scaledX = (mouseX - offsetX) / scaleFactor;
+    const scaledY = (mouseY - offsetY) / scaleFactor;
+
+    // 긍정 버튼 클릭 (버튼 중심: x=150, y=100, 크기: 120x50)
+    if (scaledX > 150 - 60 && scaledX < 150 + 60 && scaledY > 100 - 25 && scaledY < 100 + 25) {
+        currentState = 'happy';
+        happyCStartFrame = frameCount;
+    }
+    // 부정 버튼 클릭 (버튼 중심: x=450, y=100, 크기: 120x50)
+    else if (scaledX > 450 - 60 && scaledX < 450 + 60 && scaledY > 100 - 25 && scaledY < 100 + 25) {
+        currentState = 'sad';
+        sadCStartFrame = frameCount;
+    }
+    // 나머지는 초기 상태
+    else {
+        currentState = 'early';
+    }
+}
+    </script>
+</body>
+</html>
